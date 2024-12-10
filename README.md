@@ -1,3 +1,3 @@
 I decided to make a Discord Bot version of a card game my friends and I use to play all the time back in High School. Now that we are off at different Universities we can now still play this game together over Discord! If we have the time now that is... regardless this project was a bit challenging for me as I came across many issues initially learning about discord permission. Then coding each step of the game wasn't too bad, but setting limits so that people can't play out of their turn was a hurdle I had to get over. While this isn't the finished product it was the best I could do and I hope you enjoy it!
-YouTube Video: https://www.youtube.com/watch?v=Sq_Y48IJn4Q
+YouTube Video: https://youtu.be/8ko1TVXsPjw
 *Disclamer: I can't edit videos too well, but it's suppose to be in x2 speed since I went well over the 1-2 minute time limit sorry*
