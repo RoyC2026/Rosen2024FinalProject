@@ -1,0 +1,161 @@
+import discord
+import random
+
+TOKEN = "MTMxNTgwMjI5MTUyNTEyNDEwNg.GwHuYP.nGH8ls32zeXTTo2caIKXm9QF0IATKbod3gytIw"
+
+intents = discord.Intents.default()
+intents.message_content = True
+client = discord.Client(intents=intents)
+
+WORDS = ["taco", "cat", "goat", "cheese", "pizza"]
+
+games = {}
+
+@client.event
+async def on_ready():
+    print(f"We have logged in as {client.user}")
+
+@client.event
+async def on_message(message):
+    if message.author == client.user:
+        return
+
+    content = message.content.lower()
+
+    ## Starts
+    if content.startswith("!start"):
+        if message.channel.id in games:
+            await message.channel.send("A game is already in progress in this channel!")
+            return
+
+        players = [message.author]
+        games[message.channel.id] = {
+            "players": players,
+            "deck": random.sample(WORDS * 10, len(WORDS) * 10),
+            "current_card": None,
+            "turn_index": 0,
+            "player_cards": {}, 
+            "pile": [],
+            "slapper": None,
+        }
+        await message.channel.send(
+            f"Taco Cat Goat Cheese Pizza game started by {message.author.mention}! Type `!join` to join. Type `!begin` when everyone is ready!"
+        )
+
+    ## Join
+    elif content.startswith("!join"):
+        if message.channel.id not in games:
+            await message.channel.send("No game is active in this channel. Start one with `!start`.")
+            return
+
+        game = games[message.channel.id]
+        if message.author in game["players"]:
+            await message.channel.send("You are already in the game!")
+        else:
+            game["players"].append(message.author)
+            await message.channel.send(f"{message.author.mention} has joined the game!")
+
+    ## Begin
+    elif content.startswith("!begin"):
+        if message.channel.id not in games:
+            await message.channel.send("No game is active in this channel. Start one with `!start`.")
+            return
+
+        game = games[message.channel.id]
+        if len(game["players"]) < 2:
+            await message.channel.send("You need at least 2 players to start the game!")
+            return
+
+        ## "Shuffle"
+        total_cards = len(game["players"]) * 12
+        game["deck"] = random.sample(game["deck"], total_cards)
+        for player in game["players"]:
+            game["player_cards"][player] = game["deck"][:12]
+            game["deck"] = game["deck"][12:]
+
+        await message.channel.send(
+            f"The game is starting with {len(game['players'])} players! Each player starts with 12 cards. Players take turns drawing cards by typing `!draw`. Get ready!"
+        )
+        await message.channel.send(
+            f"The turn order is: {', '.join(player.mention for player in game['players'])}. It's {game['players'][0].mention}'s turn!"
+        )
+
+    ## Draw
+    elif content.startswith("!draw"):
+        if message.channel.id not in games:
+            await message.channel.send("No game is active in this channel. Start one with `!start`.")
+            return
+
+        game = games[message.channel.id]
+        player = message.author
+
+        if game["players"][game["turn_index"]] != player:
+            await message.channel.send(f"It's not your turn, {player.mention}!")
+            return
+
+        if not game["player_cards"][player]:
+            await message.channel.send(f"{player.mention}, you have no more cards left!")
+            return
+
+        ## Center Repeat
+        card = game["player_cards"][player].pop(0)
+        game["current_card"] = card
+        game["pile"].append(card)
+        await message.channel.send(f"{player.mention} drew a card: **{card.upper()}**")
+
+        ## Hand Repeat
+        player_status = "\n".join(
+            f"{p.mention}: {len(game['player_cards'][p])} cards"
+            for p in game["players"]
+        )
+        pile_count = len(game["pile"])
+        await message.channel.send(
+            f"Remaining cards:\n{player_status}\n**Cards in pile:** {pile_count}"
+        )
+
+        ## Match
+        if WORDS[game["turn_index"] % len(WORDS)] == card:
+            await message.channel.send(
+                f"SLAP!!! Type `!slap` to slap the card and claim the pile!"
+            )
+        else:
+            await message.channel.send(
+                f"No match this time! Passing the turn to the next player."
+            )
+            game["turn_index"] = (game["turn_index"] + 1) % len(game["players"])
+
+    ## SLAP!
+    elif content.startswith("!slap"):
+        if message.channel.id not in games:
+            await message.channel.send("No game is active in this channel. Start one with `!start`.")
+            return
+
+        game = games[message.channel.id]
+        if not game["pile"]:
+            await message.channel.send("There is nothing to slap right now!")
+            return
+
+        game["slapper"] = message.author
+        await message.channel.send(
+            f"{message.author.mention} slapped the pile!"
+        )
+        if game["slapper"]:
+            game["player_cards"][game["slapper"]].extend(game["pile"])
+            await message.channel.send(
+                f"{game['slapper'].mention} has claimed the pile of {len(game['pile'])} cards!"
+            )
+            game["pile"].clear()
+            game["slapper"] = None
+
+        ## Whoops Pass
+        game["turn_index"] = (game["turn_index"] + 1) % len(game["players"])
+
+    ## Ends Game
+    elif content.startswith("!quit"):
+        if message.channel.id in games:
+            del games[message.channel.id]
+            await message.channel.send("The game has been terminated.")
+        else:
+            await message.channel.send("No game is active in this channel.")
+
+client.run(TOKEN)
